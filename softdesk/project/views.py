@@ -10,7 +10,8 @@ from django.http import Http404
 from .models import Users, Projects, Contributors, Issues
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
-    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer
+    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer, \
+    CommentCreateSerializer
 
 
 
@@ -202,6 +203,25 @@ class ManageProjectIssues(ManageProject):
             issue.delete()
             return Response(f"Issue: {issue.title} has been deleted")
         return Response(f"You're not the author of issue {issue.title}")
+
+
+class ManageIssuesComments(ManageProjectIssues):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id, issue_id):
+        project = self.get_project(project_id)
+        issue = self.get_issue(issue_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to post comments in project {project.title}")
+        serializer = CommentCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(author_user_id=request.user, issue_id=issue)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 
 

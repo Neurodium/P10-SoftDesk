@@ -89,5 +89,12 @@ class IssueModifySerializer(ModelSerializer):
         exclude = ['project_id', 'author_user_id']
 
 
+class CommentCreateSerializer(ModelSerializer):
+
+    class Meta:
+        model = Comments
+        fields = ['description']
+
+
 
 

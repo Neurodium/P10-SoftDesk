@@ -20,7 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
 from project.views import CreateUser, LoginUser, UserProjectList, ManageProject, ManageProjectUsers, \
-    ManageProjectIssues
+    ManageProjectIssues, ManageIssuesComments
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -35,5 +35,6 @@ urlpatterns = [
     path('projects/<project_id>/users/<user_id>/', ManageProjectUsers.as_view()),
     path('projects/<project_id>/issues/', ManageProjectIssues.as_view()),
     path('projects/<project_id>/issues/<issue_id>/', ManageProjectIssues.as_view()),
+    path('projects/<project_id>/issues/<issue_id>/comments/', ManageIssuesComments.as_view()),
 
 ]
