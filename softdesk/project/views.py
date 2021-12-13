@@ -1,0 +1,213 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.exceptions import ValidationError
+from django.http import Http404
+
+from .models import Users, Projects, Contributors, Issues
+from project.serializers import CreateUserSerializer, \
+    ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
+    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer
+
+
+
+# Create your views here.
+class CreateUser(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = CreateUserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginUser(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        data = request.data
+        email = data['email']
+        try:
+            user = Users.objects.get(email=email)
+        except BaseException as error:
+            raise ValidationError({"400": f'{str(error)}'})
+
+        if user.is_active:
+            token = RefreshToken.for_user(user)
+            response = {"email": email,
+                        "token": str(token),
+                        "access": str(token.access_token), }
+            return Response(response, status=status.HTTP_200_OK)
+        else:
+            raise ValidationError({"400": f'{user.last_name} {user.first_name} is not active'})
+
+
+class UserProjectList(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        projects = Projects.objects.filter(author_user_id=request.user)
+        if not projects:
+            return Response("No Data")
+        serializer = ProjectListSerializer(projects, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        data = request.data
+        serializer = ProjectCreateSerializer(data=request.data)
+        projects = Projects.objects.filter(title=data['title'])
+        if not projects:
+            if serializer.is_valid():
+                serializer.save(author_user_id=request.user)
+                project_saved = Projects.objects.get(title=data['title'])
+                manager = Contributors(user_id=request.user,
+                                        project_id=project_saved,
+                                        permission='All Rights',
+                                        role='Manager')
+                manager.save()
+                return Response(str(serializer.data), status=status.HTTP_201_CREATED)
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response("Project already created")
+
+
+class ManageProject(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_project(self, project_id):
+        try:
+            return Projects.objects.get(id=project_id)
+        except Projects.DoesNotExist:
+            raise Http404
+
+    def get(self, request, project_id):
+        project = self.get_project(project_id)
+        serializer = ProjectDetailSerializer(project)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, project_id):
+        project = self.get_project(project_id)
+        if request.user == project.author_user_id:
+            data = request.data
+            serializer = ProjectDetailSerializer(project, data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You're not the author of the project {project.title}")
+
+    def delete(self, request, project_id):
+        project = self.get_project(project_id)
+        if request.user == project.author_user_id:
+            content = {"id": project_id,
+                       "title": project.title}
+            project.delete()
+            return Response(content, status=status.HTTP_204_NO_CONTENT)
+        return Response(f"You're not the author of the project {project.title}")
+
+
+class ManageProjectUsers(ManageProject):
+    permission_classes = [IsAuthenticated]
+
+    def get_user(self, user_id):
+        try:
+            return Users.objects.get(id=user_id)
+        except Users.DoesNotExist:
+            raise Http404
+
+    def get(self, request, project_id):
+        project = self.get_project(project_id)
+        contributors = Contributors.objects.filter(project_id=project)
+        serializer = ContributorsDetailsSerializer(contributors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, project_id):
+        project = self.get_project(project_id)
+        if request.user == project.author_user_id:
+            serializer = ProjectContributor(data=request.data)
+            if serializer.is_valid():
+                user = Users.objects.get(email=serializer.data['email'])
+                role = 'Contributor'
+                permission = 'Create and Read'
+                contributor = Contributors.objects.create(user_id=user,
+                                                        project_id=project,
+                                                        role=role,
+                                                        permission=permission)
+                contributor.save
+                data = {"email": user.email,
+                        "project": project.title,
+                        "role": role,
+                        "permission": permission}
+                return Response(data, status=status.HTTP_201_CREATED)
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You're not the author of the project {project.title}")
+
+    def delete(self, request, project_id, user_id):
+        project = self.get_project(project_id)
+        if request.user == project.author_user_id:
+            user = self.get_user(user_id)
+            contributor = Contributors.objects.get(user_id=user, project_id=project)
+            contributor.delete()
+            return Response(f"User: {user.last_name} {user.first_name} has been removed from project {project.title}", status=status.HTTP_204_NO_CONTENT)
+        return Response(f"You're not the author of the project {project.title}")
+
+
+class ManageProjectIssues(ManageProject):
+    permission_classes = [IsAuthenticated]
+
+    def get_issue(self.issue_id):
+    try:
+        return Issues.objects.get(id=issue_id)
+    except Issues.DoesNotExist:
+        raise Http404
+
+    def get(self, request, project_id):
+        project = self.get_project(project_id)
+        issues = Issues.objects.filter(project_id=project)
+        if not issues:
+            return Response("No issues on this project")
+        serializer = IssuesDetailsSerializer(issues, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, project_id):
+        project = self.get_project(project_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to post issues in project {project.title}")
+        serializer = IssueCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(project_id=project, author_user_id=request.user, assignee_user_id=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, project_id, issue_id):
+        project = self.get_project(project_id)
+        issue = self.get_issue(issue_id)
+        if request.user == issue.author_user_id:
+            data = request.data
+            serializer = ProjectDetailSerializer(project, data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You're not the author of the project {project.title}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
