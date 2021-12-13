@@ -96,5 +96,10 @@ class CommentCreateSerializer(ModelSerializer):
         fields = ['description']
 
 
+class CommentsListSerializer(ModelSerializer):
+
+    class Meta:
+        model = Comments
+        fields = ['id', 'description']
 
 

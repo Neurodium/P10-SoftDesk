@@ -7,11 +7,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from django.http import Http404
 
-from .models import Users, Projects, Contributors, Issues
+from .models import Users, Projects, Contributors, Issues, Comments
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
     ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer, \
-    CommentCreateSerializer
+    CommentCreateSerializer, CommentsListSerializer
 
 
 
@@ -87,6 +87,9 @@ class ManageProject(APIView):
 
     def get(self, request, project_id):
         project = self.get_project(project_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to view details of project {project.title}")
         serializer = ProjectDetailSerializer(project)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -169,6 +172,9 @@ class ManageProjectIssues(ManageProject):
     def get(self, request, project_id):
         project = self.get_project(project_id)
         issues = Issues.objects.filter(project_id=project)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to view issues of project {project.title}")
         if not issues:
             return Response("No issues on this project")
         serializer = IssuesDetailsSerializer(issues, many=True)
@@ -219,6 +225,16 @@ class ManageIssuesComments(ManageProjectIssues):
             serializer.save(author_user_id=request.user, issue_id=issue)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, project_id, issue_id):
+        project = self.get_project(project_id)
+        issue = self.get_issue(issue_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to view comments in project {project.title}")
+        comments = Comments.objects.filter(issue_id=issue)
+        serializer = CommentsListSerializer(comments, many=True)
+        return Response(serializer.data)
 
 
 
