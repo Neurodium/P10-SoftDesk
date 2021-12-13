@@ -34,5 +34,6 @@ urlpatterns = [
     path('projects/<project_id>/users/', ManageProjectUsers.as_view()),
     path('projects/<project_id>/users/<user_id>/', ManageProjectUsers.as_view()),
     path('projects/<project_id>/issues/', ManageProjectIssues.as_view()),
+    path('projects/<project_id>/issues/<issue_id>/', ManageProjectIssues.as_view()),
 
 ]

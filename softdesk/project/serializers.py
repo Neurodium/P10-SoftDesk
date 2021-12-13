@@ -82,5 +82,12 @@ class IssueCreateSerializer(ModelSerializer):
         exclude = ['project_id', 'author_user_id', 'assignee_user_id']
 
 
+class IssueModifySerializer(ModelSerializer):
+
+    class Meta:
+        model = Issues
+        exclude = ['project_id', 'author_user_id']
+
+
 
 

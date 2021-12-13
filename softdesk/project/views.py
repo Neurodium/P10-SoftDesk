@@ -10,7 +10,7 @@ from django.http import Http404
 from .models import Users, Projects, Contributors, Issues
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
-    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer
+    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer
 
 
 
@@ -159,11 +159,11 @@ class ManageProjectUsers(ManageProject):
 class ManageProjectIssues(ManageProject):
     permission_classes = [IsAuthenticated]
 
-    def get_issue(self.issue_id):
-    try:
-        return Issues.objects.get(id=issue_id)
-    except Issues.DoesNotExist:
-        raise Http404
+    def get_issue(self, issue_id):
+        try:
+            return Issues.objects.get(id=issue_id)
+        except Issues.DoesNotExist:
+            raise Http404
 
     def get(self, request, project_id):
         project = self.get_project(project_id)
@@ -189,12 +189,19 @@ class ManageProjectIssues(ManageProject):
         issue = self.get_issue(issue_id)
         if request.user == issue.author_user_id:
             data = request.data
-            serializer = ProjectDetailSerializer(project, data=data)
+            serializer = IssueModifySerializer(issue, data=data)
             if serializer.is_valid():
-                serializer.save()
+                serializer.save(project_id=project, author_user_id=request.user)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        return Response(f"You're not the author of the project {project.title}")
+        return Response(f"You're not the author of the issue {project.title}")
+
+    def delete(self, request, project_id, issue_id):
+        issue = self.get_issue(issue_id)
+        if request.user == issue.author_user_id:
+            issue.delete()
+            return Response(f"Issue: {issue.title} has been deleted")
+        return Response(f"You're not the author of issue {issue.title}")
 
 
 
