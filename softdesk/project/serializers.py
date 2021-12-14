@@ -91,9 +91,28 @@ class ContributorsDetailsSerializer(ModelSerializer):
 
 class IssuesDetailsSerializer(ModelSerializer):
 
+    author_user_id = SerializerMethodField()
+    assignee_user_id = SerializerMethodField()
+    project_id = SerializerMethodField()
+
     class Meta:
         model = Issues
-        fields = '__all__'
+        fields = ['id', 'title', 'desc', 'tag', 'priority', 'status', 'created_time', 'author_user_id', 'assignee_user_id', 'project_id']
+
+    def get_author_user_id(self, obj):
+        queryset = Users.objects.get(email=obj.author_user_id)
+        serializer = UserDetailSerializer(queryset)
+        return serializer.data
+
+    def get_assignee_user_id(self, obj):
+        queryset = Users.objects.get(email=obj.assignee_user_id)
+        serializer = UserDetailSerializer(queryset)
+        return serializer.data
+
+    def get_project_id(self, obj):
+        queryset = Projects.objects.get(id=obj.project_id.id)
+        serializer = ProjectDetailSerializer(queryset)
+        return serializer.data
 
 
 class IssueCreateSerializer(ModelSerializer):
@@ -125,8 +144,22 @@ class CommentsListSerializer(ModelSerializer):
 
 class CommentDetailSerializer(ModelSerializer):
 
+    author_user_id = SerializerMethodField()
+    issue_id = SerializerMethodField()
+
     class Meta:
         model = Comments
-        fields = '__all__'
+        fields = ['id', 'description', 'created_time', 'issue_id', 'author_user_id']
+
+    def get_author_user_id(self, obj):
+        queryset = Users.objects.get(email=obj.author_user_id)
+        serializer = UserDetailSerializer(queryset)
+        return serializer.data
+
+    def get_issue_id(self, obj):
+        queryset = Issues.objects.get(id=obj.issue_id.id)
+        serializer = IssuesDetailsSerializer(queryset)
+        return serializer.data
+
 
 

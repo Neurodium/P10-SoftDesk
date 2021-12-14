@@ -191,7 +191,11 @@ class ManageProjectIssues(ManageProject):
             return Response(f"You're not allowed to view issues of project {project.title}")
         if not issues:
             return Response("No issues on this project")
-        serializer = IssuesDetailsSerializer(issues, many=True)
+        page = self.paginate_queryset(issues)
+        if page is not None:
+            serializer = self.get_paginated_response(IssuesDetailsSerializer(page, many=True).data)
+        else:
+            serializer = IssuesDetailsSerializer(issues)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, project_id):
