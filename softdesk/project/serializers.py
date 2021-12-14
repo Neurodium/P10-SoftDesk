@@ -28,6 +28,14 @@ class LoginUserSerializer(ModelSerializer):
         model = Users
         fields = ['email', 'password']
 
+
+class UserDetailSerializer(ModelSerializer):
+
+    class Meta:
+        model = Users
+        fields = ['first_name', 'last_name', 'email']
+
+
 class ProjectCreateSerializer(ModelSerializer):
 
     class Meta:
@@ -43,6 +51,19 @@ class ProjectListSerializer(ModelSerializer):
 
 
 class ProjectDetailSerializer(ModelSerializer):
+    author_user_id = SerializerMethodField()
+
+    class Meta:
+        model = Projects
+        fields = ['id', 'title', 'description', 'type', 'author_user_id']
+
+    def get_author_user_id(self, obj):
+        queryset = Users.objects.get(email=obj.author_user_id)
+        serializer = UserDetailSerializer(queryset)
+        return serializer.data
+
+
+class ProjectUpdateSerializer(ModelSerializer):
 
     class Meta:
         model = Projects

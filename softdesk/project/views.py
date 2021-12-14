@@ -10,9 +10,9 @@ from django.http import Http404
 from .pagination import PaginationHandlerMixin
 from .models import Users, Projects, Contributors, Issues, Comments
 from project.serializers import CreateUserSerializer, \
-    ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
-    ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer, \
-    CommentCreateSerializer, CommentsListSerializer, CommentDetailSerializer
+    ProjectListSerializer, ProjectDetailSerializer, ProjectUpdateSerializer, ProjectCreateSerializer, \
+    ProjectContributor, ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, \
+    IssueModifySerializer, CommentCreateSerializer, CommentsListSerializer, CommentDetailSerializer
 
 
 
@@ -52,15 +52,22 @@ class LoginUser(APIView):
             raise ValidationError({"400": f'{user.last_name} {user.first_name} is not active'})
 
 
-class UserProjectList(APIView):
+class UserProjectList(APIView, PaginationHandlerMixin):
     permission_classes = [IsAuthenticated]
+    pagination_class = BasicPagination
 
     def get(self, request):
         projects = Projects.objects.filter(author_user_id=request.user)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id__in=projects)
         if not projects:
             return Response("No Data")
-        serializer = ProjectListSerializer(projects, many=True)
+        page = self.paginate_queryset(projects)
+        if page is not None:
+            serializer = self.get_paginated_response(ProjectListSerializer(page, many=True).data)
+        else:
+            serializer = ProjectListSerializer(projects, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
     def post(self, request):
         data = request.data
@@ -84,7 +91,6 @@ class ManageProject(APIView, PaginationHandlerMixin):
     permission_classes = [IsAuthenticated]
     pagination_class = BasicPagination
 
-
     def get_project(self, project_id):
         try:
             return Projects.objects.get(id=project_id)
@@ -103,7 +109,7 @@ class ManageProject(APIView, PaginationHandlerMixin):
         project = self.get_project(project_id)
         if request.user == project.author_user_id:
             data = request.data
-            serializer = ProjectDetailSerializer(project, data=data)
+            serializer = ProjectUpdateSerializer(project, data=data)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
@@ -131,7 +137,11 @@ class ManageProjectUsers(ManageProject):
     def get(self, request, project_id):
         project = self.get_project(project_id)
         contributors = Contributors.objects.filter(project_id=project)
-        serializer = ContributorsDetailsSerializer(contributors, many=True)
+        page = self.paginate_queryset(contributors)
+        if page is not None:
+            serializer = self.get_paginated_response(ContributorsDetailsSerializer(page, many=True).data)
+        else:
+            serializer = ContributorsDetailsSerializer(contributors, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, project_id):

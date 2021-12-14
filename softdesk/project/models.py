@@ -17,6 +17,9 @@ class Users(AbstractBaseUser):
 
     objects = MyAccountManager()
 
+    class Meta:
+        ordering = ['last_name', 'first_name']
+
     def __str__(self):
         return str(self.email)
 
@@ -47,9 +50,12 @@ class Contributors(models.Model):
 
     class Meta:
         unique_together = ['user_id', 'project_id']
+        ordering = ['id']
 
     def __str__(self):
         return self.user_id.email
+
+
 
 
 class Projects(models.Model):
@@ -69,6 +75,9 @@ class Projects(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['id']
 
 
 class Issues(models.Model):
@@ -105,6 +114,9 @@ class Issues(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['id']
 
 
 class Comments(models.Model):
