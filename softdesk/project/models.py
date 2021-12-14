@@ -117,3 +117,6 @@ class Comments(models.Model):
     def __str__(self):
         return self.issue_id.title
 
+    class Meta:
+        ordering = ['id']
+

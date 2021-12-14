@@ -2,11 +2,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.pagination import PageNumberPagination
 from django.core.exceptions import ValidationError
 from django.http import Http404
 
+from .pagination import PaginationHandlerMixin
 from .models import Users, Projects, Contributors, Issues, Comments
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
@@ -16,6 +17,9 @@ from project.serializers import CreateUserSerializer, \
 
 
 # Create your views here.
+class BasicPagination(PageNumberPagination):
+    page_size_query_param = 'limit'
+
 class CreateUser(APIView):
     permission_classes = [AllowAny]
 
@@ -76,8 +80,10 @@ class UserProjectList(APIView):
         return Response("Project already created")
 
 
-class ManageProject(APIView):
+class ManageProject(APIView, PaginationHandlerMixin):
     permission_classes = [IsAuthenticated]
+    pagination_class = BasicPagination
+
 
     def get_project(self, project_id):
         try:
@@ -115,7 +121,6 @@ class ManageProject(APIView):
 
 
 class ManageProjectUsers(ManageProject):
-    permission_classes = [IsAuthenticated]
 
     def get_user(self, user_id):
         try:
@@ -161,7 +166,6 @@ class ManageProjectUsers(ManageProject):
 
 
 class ManageProjectIssues(ManageProject):
-    permission_classes = [IsAuthenticated]
 
     def get_issue(self, issue_id):
         try:
@@ -212,7 +216,6 @@ class ManageProjectIssues(ManageProject):
 
 
 class ManageIssuesComments(ManageProjectIssues):
-    permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id, issue_id):
         project = self.get_project(project_id)
@@ -233,12 +236,12 @@ class ManageIssuesComments(ManageProjectIssues):
         if not contributor:
             return Response(f"You're not allowed to view comments in project {project.title}")
         comments = Comments.objects.filter(issue_id=issue)
-        serializer = CommentsListSerializer(comments, many=True)
-        return Response(serializer.data)
+        page = self.paginate_queryset(comments)
+        serializer = self.get_paginated_response(CommentsListSerializer(page, many=True).data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ManageComments(ManageIssuesComments):
-    permission_classes = [IsAuthenticated]
 
     def get_comment(self, comment_id):
         try:
