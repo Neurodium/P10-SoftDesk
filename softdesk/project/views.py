@@ -11,7 +11,7 @@ from .models import Users, Projects, Contributors, Issues, Comments
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectCreateSerializer, ProjectContributor, \
     ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, IssueModifySerializer, \
-    CommentCreateSerializer, CommentsListSerializer
+    CommentCreateSerializer, CommentsListSerializer, CommentDetailSerializer
 
 
 
@@ -235,6 +235,48 @@ class ManageIssuesComments(ManageProjectIssues):
         comments = Comments.objects.filter(issue_id=issue)
         serializer = CommentsListSerializer(comments, many=True)
         return Response(serializer.data)
+
+
+class ManageComments(ManageIssuesComments):
+    permission_classes = [IsAuthenticated]
+
+    def get_comment(self, comment_id):
+        try:
+            return Comments.objects.get(id=comment_id)
+        except Comments.DoesNotExist:
+            raise Http404
+
+    def get(self, request, project_id, issue_id, comment_id):
+        project = self.get_project(project_id)
+        issue = self.get_issue(issue_id)
+        comment = self.get_comment(comment_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to view this comment of project {project.title}")
+        serializer = CommentDetailSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    def put(self, request, project_id, issue_id, comment_id):
+        issue = self.get_issue(issue_id)
+        comment = self.get_comment(comment_id)
+        if request.user == comment.author_user_id:
+            serializer = CommentCreateSerializer(comment, data=request.data)
+            if serializer.is_valid():
+                serializer.save(author_user_id=request.user, issue_id=issue)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You're not the author of this comment")
+
+    def delete(self, request, project_id, issue_id, comment_id):
+        comment = self.get_comment(comment_id)
+        if request.user == comment.author_user_id:
+            comment.delete()
+            return Response(f"Your comment: '{comment.description}' has been deleted")
+        return Response(f"You're not the author of this comment")
+
+
+
 
 
 

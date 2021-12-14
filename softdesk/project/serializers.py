@@ -102,4 +102,10 @@ class CommentsListSerializer(ModelSerializer):
         model = Comments
         fields = ['id', 'description']
 
+class CommentDetailSerializer(ModelSerializer):
+
+    class Meta:
+        model = Comments
+        fields = '__all__'
+
 
