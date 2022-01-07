@@ -50,6 +50,19 @@ class ProjectListSerializer(ModelSerializer):
         fields = ['id', 'title']
 
 
+class ContributorProjectList(ModelSerializer):
+    project_id = SerializerMethodField()
+
+    class Meta:
+        model = Contributors
+        fields = ['project_id']
+
+    def get_project_id(self, obj):
+        queryset = Projects.objects.get(title=obj.project_id.title)
+        serializer = ProjectListSerializer(queryset)
+        return serializer.data
+
+
 class ProjectDetailSerializer(ModelSerializer):
     author_user_id = SerializerMethodField()
 

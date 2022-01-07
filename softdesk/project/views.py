@@ -12,7 +12,8 @@ from .models import Users, Projects, Contributors, Issues, Comments
 from project.serializers import CreateUserSerializer, \
     ProjectListSerializer, ProjectDetailSerializer, ProjectUpdateSerializer, ProjectCreateSerializer, \
     ProjectContributor, ContributorsDetailsSerializer, IssuesDetailsSerializer, IssueCreateSerializer, \
-    IssueModifySerializer, CommentCreateSerializer, CommentsListSerializer, CommentDetailSerializer
+    IssueModifySerializer, CommentCreateSerializer, CommentsListSerializer, CommentDetailSerializer, \
+    ContributorProjectList
 
 
 
@@ -57,15 +58,14 @@ class UserProjectList(APIView, PaginationHandlerMixin):
     pagination_class = BasicPagination
 
     def get(self, request):
-        projects = Projects.objects.filter(author_user_id=request.user)
-        contributor = Contributors.objects.filter(user_id=request.user, project_id__in=projects)
-        if not projects:
+        contributor = Contributors.objects.filter(user_id=request.user)
+        if not contributor:
             return Response("No Data")
-        page = self.paginate_queryset(projects)
+        page = self.paginate_queryset(contributor)
         if page is not None:
-            serializer = self.get_paginated_response(ProjectListSerializer(page, many=True).data)
+            serializer = self.get_paginated_response(ContributorProjectList(page, many=True).data)
         else:
-            serializer = ProjectListSerializer(projects, many=True)
+            serializer = ContributorProjectList(projects, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -136,6 +136,9 @@ class ManageProjectUsers(ManageProject):
 
     def get(self, request, project_id):
         project = self.get_project(project_id)
+        contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
+        if not contributor:
+            return Response(f"You're not allowed to view issues of project {project.title}")
         contributors = Contributors.objects.filter(project_id=project)
         page = self.paginate_queryset(contributors)
         if page is not None:
@@ -149,19 +152,27 @@ class ManageProjectUsers(ManageProject):
         if request.user == project.author_user_id:
             serializer = ProjectContributor(data=request.data)
             if serializer.is_valid():
-                user = Users.objects.get(email=serializer.data['email'])
+                try:
+                    user = Users.objects.get(email=serializer.data['email'])
+                except Users.DoesNotExist:
+                    raise Http404
                 role = 'Contributor'
                 permission = 'Create and Read'
-                contributor = Contributors.objects.create(user_id=user,
-                                                        project_id=project,
-                                                        role=role,
-                                                        permission=permission)
-                contributor.save
-                data = {"email": user.email,
-                        "project": project.title,
-                        "role": role,
-                        "permission": permission}
-                return Response(data, status=status.HTTP_201_CREATED)
+                try:
+                    Contributors.objects.get(user_id=user, project_id=project)
+                except Contributors.DoesNotExist:
+                    contributor = Contributors.objects.create(user_id=user,
+                                                              project_id=project,
+                                                              role=role,
+                                                              permission=permission)
+                    contributor.save
+                    data = {"email": user.email,
+                            "project": project.title,
+                            "role": role,
+                            "permission": permission}
+                    return Response(data, status=status.HTTP_201_CREATED)
+                return Response(f"User {user.last_name} {user.first_name} is already a contributor on project "
+                                f"{project.title}")
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(f"You're not the author of the project {project.title}")
 
