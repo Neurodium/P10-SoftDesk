@@ -277,7 +277,6 @@ class ManageComments(ManageIssuesComments):
 
     def get(self, request, project_id, issue_id, comment_id):
         project = self.get_project(project_id)
-        issue = self.get_issue(issue_id)
         comment = self.get_comment(comment_id)
         contributor = Contributors.objects.filter(user_id=request.user, project_id=project)
         if not contributor:
