@@ -20,7 +20,7 @@ run pip install -r src/requirements.txt
 run manage.py runserver
 
 # Django application access
-Get the API collection from Postman:  https://documenter.getpostman.com/view/17160432/UVXeqcUR
+Get the API collection from Postman:  https://documenter.getpostman.com/view/17160432/UVXeqcUR<br>
 Import the collection in your respository
 
 # Features: Endpoint list:
