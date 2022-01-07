@@ -227,7 +227,8 @@ class ManageProjectIssues(ManageProject):
             data = request.data
             serializer = IssueModifySerializer(issue, data=data)
             if serializer.is_valid():
-                serializer.save(project_id=project, author_user_id=request.user)
+                assignee = Users.objects.get(email=serializer.validated_data['assignee_user_id'])
+                serializer.save(project_id=project, author_user_id=request.user, assignee_user_id=assignee)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(f"You're not the author of the issue {project.title}")

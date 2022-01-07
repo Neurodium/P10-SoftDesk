@@ -136,6 +136,7 @@ class IssueCreateSerializer(ModelSerializer):
 
 
 class IssueModifySerializer(ModelSerializer):
+    assignee_user_id = serializers.EmailField(max_length=60)
 
     class Meta:
         model = Issues
