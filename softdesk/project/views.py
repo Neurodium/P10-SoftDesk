@@ -65,7 +65,7 @@ class UserProjectList(APIView, PaginationHandlerMixin):
         if page is not None:
             serializer = self.get_paginated_response(ContributorProjectList(page, many=True).data)
         else:
-            serializer = ContributorProjectList(projects, many=True)
+            serializer = ContributorProjectList(contributor, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
