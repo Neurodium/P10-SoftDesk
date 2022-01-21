@@ -76,7 +76,7 @@ class UserProjectList(APIView, PaginationHandlerMixin):
         if not projects:
             if serializer.is_valid():
                 serializer.save(author_user_id=request.user)
-                project_saved = Projects.objects.get(title=data['title'])
+                project_saved = Projects.objects.get(title=serializer.validated_data['title'])
                 manager = Contributors(user_id=request.user,
                                         project_id=project_saved,
                                         permission='All Rights',
